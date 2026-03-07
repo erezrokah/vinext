@@ -2601,6 +2601,29 @@ describe("instrumentation.ts support", () => {
     // Should not throw
     await runInstrumentation(mockServer, "/fake/empty-instrumentation.ts");
   });
+
+  it("runInstrumentation handles ssrLoadModule transport errors gracefully", async () => {
+    const { runInstrumentation } = await import(
+      "../packages/vinext/src/server/instrumentation.js"
+    );
+    const mockServer = {
+      ssrLoadModule: async (_id: string) => {
+        throw new TypeError(
+          "Cannot read properties of undefined (reading 'outsideEmitter')"
+        );
+      },
+    };
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await runInstrumentation(mockServer, "/fake/instrumentation.ts");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[vinext] Failed to load instrumentation:",
+        "Cannot read properties of undefined (reading 'outsideEmitter')",
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
 });
 
 describe("production server compression", () => {
