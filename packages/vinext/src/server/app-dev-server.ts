@@ -521,16 +521,14 @@ async function renderHTTPAccessFallbackPage(route, statusCode, isRscRequest, req
 
   // Resolve metadata and viewport from parent layouts so that not-found/error
   // pages inherit title, description, OG tags etc. — matching Next.js behavior.
-  const metadataList = [];
-  const viewportList = [];
-  for (const layoutMod of layouts) {
-    if (layoutMod) {
-      const meta = await resolveModuleMetadata(layoutMod);
-      if (meta) metadataList.push(meta);
-      const vp = await resolveModuleViewport(layoutMod);
-      if (vp) viewportList.push(vp);
-    }
-  }
+  // Run all resolutions in parallel — generateMetadata() can do async I/O.
+  const _filteredLayouts = layouts.filter(Boolean);
+  const [_metaResults, _vpResults] = await Promise.all([
+    Promise.all(_filteredLayouts.map((mod) => resolveModuleMetadata(mod).catch((err) => { console.error("[vinext] Layout generateMetadata() failed:", err); return null; }))),
+    Promise.all(_filteredLayouts.map((mod) => resolveModuleViewport(mod).catch((err) => { console.error("[vinext] Layout generateViewport() failed:", err); return null; }))),
+  ]);
+  const metadataList = _metaResults.filter(Boolean);
+  const viewportList = _vpResults.filter(Boolean);
   const resolvedMetadata = metadataList.length > 0 ? mergeMetadata(metadataList) : null;
   const resolvedViewport = mergeViewport(viewportList);
 
@@ -843,23 +841,26 @@ async function buildPageElement(route, params, opts, searchParams) {
     return createElement("div", null, "Page has no default export");
   }
 
-  // Resolve metadata and viewport from layouts and page
-  const metadataList = [];
-  const viewportList = [];
-  for (const layoutMod of route.layouts) {
-    if (layoutMod) {
-      const meta = await resolveModuleMetadata(layoutMod, params);
-      if (meta) metadataList.push(meta);
-      const vp = await resolveModuleViewport(layoutMod, params);
-      if (vp) viewportList.push(vp);
-    }
-  }
-  if (route.page) {
-    const pageMeta = await resolveModuleMetadata(route.page, params);
-    if (pageMeta) metadataList.push(pageMeta);
-    const pageVp = await resolveModuleViewport(route.page, params);
-    if (pageVp) viewportList.push(pageVp);
-  }
+  // Resolve metadata and viewport from layouts and page — all in parallel.
+  // generateMetadata() can do async I/O (KV reads, fetches, DB queries).
+  // Running them serially made each layout's metadata block the next one.
+  // Promise.all fires all resolutions concurrently so the total wait is
+  // max(individual times) instead of sum(individual times).
+  //
+  // IMPORTANT: Layout metadata errors are swallowed (.catch(() => null)) because
+  // a layout's generateMetadata() failing should not crash the page.
+  // Page metadata errors are NOT swallowed — if the page's generateMetadata()
+  // throws, the error propagates out of buildPageElement() so the caller can
+  // route it to the nearest error.tsx boundary (or global-error.tsx).
+  const layoutMods = route.layouts.filter(Boolean);
+  const [layoutMetaResults, layoutVpResults, pageMeta, pageVp] = await Promise.all([
+    Promise.all(layoutMods.map((mod) => resolveModuleMetadata(mod, params).catch((err) => { console.error("[vinext] Layout generateMetadata() failed:", err); return null; }))),
+    Promise.all(layoutMods.map((mod) => resolveModuleViewport(mod, params).catch((err) => { console.error("[vinext] Layout generateViewport() failed:", err); return null; }))),
+    route.page ? resolveModuleMetadata(route.page, params) : Promise.resolve(null),
+    route.page ? resolveModuleViewport(route.page, params) : Promise.resolve(null),
+  ]);
+  const metadataList = [...layoutMetaResults.filter(Boolean), ...(pageMeta ? [pageMeta] : [])];
+  const viewportList = [...layoutVpResults.filter(Boolean), ...(pageVp ? [pageVp] : [])];
   const resolvedMetadata = metadataList.length > 0 ? mergeMetadata(metadataList) : null;
   const resolvedViewport = mergeViewport(viewportList);
 
