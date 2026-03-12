@@ -953,33 +953,55 @@ export default function vinext(options: VinextOptions = {}): PluginOption[] {
         // previous deploy are never served by the new one.
         defines["process.env.__VINEXT_BUILD_ID"] = JSON.stringify(nextConfig.buildId);
 
-        // Build the shim alias map — used by both resolve.alias and resolveId
-        // (resolveId handles .js extension variants for libraries like nuqs)
+        // Build the shim alias map. Exact `.js` variants are included for the
+        // public Next entrypoints that are file-backed in `next/package.json`.
+        // Some libraries (for example `nuqs`) import `next/navigation.js`
+        // directly; aliasing the `.js` form ensures optimizeDeps pre-bundles
+        // vinext's shim instead of real Next.
         nextShimMap = {
           ...nextConfig.aliases,
           "next/link": path.join(shimsDir, "link"),
+          "next/link.js": path.join(shimsDir, "link"),
           "next/head": path.join(shimsDir, "head"),
+          "next/head.js": path.join(shimsDir, "head"),
           "next/router": path.join(shimsDir, "router"),
+          "next/router.js": path.join(shimsDir, "router"),
           "next/compat/router": path.join(shimsDir, "compat-router"),
+          "next/compat/router.js": path.join(shimsDir, "compat-router"),
           "next/image": path.join(shimsDir, "image"),
+          "next/image.js": path.join(shimsDir, "image"),
           "next/legacy/image": path.join(shimsDir, "legacy-image"),
+          "next/legacy/image.js": path.join(shimsDir, "legacy-image"),
           "next/dynamic": path.join(shimsDir, "dynamic"),
+          "next/dynamic.js": path.join(shimsDir, "dynamic"),
           "next/app": path.join(shimsDir, "app"),
+          "next/app.js": path.join(shimsDir, "app"),
           "next/document": path.join(shimsDir, "document"),
+          "next/document.js": path.join(shimsDir, "document"),
           "next/config": path.join(shimsDir, "config"),
           "next/script": path.join(shimsDir, "script"),
+          "next/script.js": path.join(shimsDir, "script"),
           "next/server": path.join(shimsDir, "server"),
+          "next/server.js": path.join(shimsDir, "server"),
           "next/navigation": path.join(shimsDir, "navigation"),
+          "next/navigation.js": path.join(shimsDir, "navigation"),
           "next/headers": path.join(shimsDir, "headers"),
+          "next/headers.js": path.join(shimsDir, "headers"),
           "next/font/google": path.join(shimsDir, "font-google"),
           "next/font/local": path.join(shimsDir, "font-local"),
           "next/cache": path.join(shimsDir, "cache"),
+          "next/cache.js": path.join(shimsDir, "cache"),
           "next/form": path.join(shimsDir, "form"),
+          "next/form.js": path.join(shimsDir, "form"),
           "next/og": path.join(shimsDir, "og"),
+          "next/og.js": path.join(shimsDir, "og"),
           "next/web-vitals": path.join(shimsDir, "web-vitals"),
+          "next/web-vitals.js": path.join(shimsDir, "web-vitals"),
           "next/amp": path.join(shimsDir, "amp"),
           "next/error": path.join(shimsDir, "error"),
+          "next/error.js": path.join(shimsDir, "error"),
           "next/constants": path.join(shimsDir, "constants"),
+          "next/constants.js": path.join(shimsDir, "constants"),
           // Internal next/dist/* paths used by popular libraries
           // (next-intl, @clerk/nextjs, @sentry/nextjs, next-nprogress-bar, etc.)
           "next/dist/shared/lib/app-router-context.shared-runtime": path.join(
@@ -1440,19 +1462,6 @@ export default function vinext(options: VinextOptions = {}): PluginOption[] {
           // ID (with \0 prefix). We need to re-resolve it so the client
           // environment's import-analysis can find it.
           const cleanId = id.startsWith("\0") ? id.slice(1) : id;
-
-          // Handle next/* imports with .js extension (e.g. "next/navigation.js")
-          // Libraries like nuqs import "next/navigation.js" which doesn't match
-          // our resolve.alias for "next/navigation". Strip the .js and resolve
-          // through our shim map, appending .js to the resolved path.
-          if (cleanId.startsWith("next/") && cleanId.endsWith(".js")) {
-            const withoutExt = cleanId.slice(0, -3);
-            if (nextShimMap[withoutExt]) {
-              const shimPath = nextShimMap[withoutExt];
-              // Alias values don't include .js — append it for resolveId
-              return shimPath.endsWith(".js") ? shimPath : shimPath + ".js";
-            }
-          }
 
           // Pages Router virtual modules
           if (cleanId === VIRTUAL_SERVER_ENTRY) return RESOLVED_SERVER_ENTRY;
