@@ -93,7 +93,7 @@ export function createRequestContext(opts?: Partial<UnifiedRequestContext>): Uni
     currentRequestTags: [],
     executionContext: _getInheritedExecutionContext(), // inherits from standalone ALS if present
     ssrContext: null,
-    ssrHeadElements: [],
+    ssrHeadChildren: [],
     ...opts,
   };
 }
@@ -128,7 +128,7 @@ export function runWithUnifiedStateMutation<T>(
 
   const childCtx = { ...parentCtx };
   // NOTE: This is a shallow clone. Array fields (pendingSetCookies,
-  // serverInsertedHTMLCallbacks, currentRequestTags, ssrHeadElements), the
+  // serverInsertedHTMLCallbacks, currentRequestTags, ssrHeadChildren), the
   // _privateCache Map, and object fields (headersContext, i18nContext,
   // serverContext, ssrContext, executionContext, requestScopedCacheLife)
   // still share references with the parent until replaced. The mutate

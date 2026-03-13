@@ -8,7 +8,7 @@ interface ISRSecondRenderStateProps {
 
 export default function ISRSecondRenderStatePage({ timestamp }: ISRSecondRenderStateProps) {
   const ctx = getRequestContext();
-  const headBefore = ctx.ssrHeadElements.length;
+  const headBefore = ctx.ssrHeadChildren.length;
   const privateCacheBefore = ctx._privateCache?.size ?? 0;
   const insertedHtmlBefore = ctx.serverInsertedHTMLCallbacks.length;
 

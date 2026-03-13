@@ -41,7 +41,7 @@ describe("unified-request-context", () => {
       expect(ctx.currentRequestTags).toEqual([]);
       expect(ctx.executionContext).toBeNull();
       expect(ctx.ssrContext).toBeNull();
-      expect(ctx.ssrHeadElements).toEqual([]);
+      expect(ctx.ssrHeadChildren).toEqual([]);
     });
 
     it("returns a fresh detached context on each call outside any scope", () => {
@@ -298,7 +298,7 @@ describe("unified-request-context", () => {
         expect(ctx.currentRequestTags).toEqual(["tag1"]);
         expect(ctx.executionContext).not.toBeNull();
         expect(ctx.ssrContext).toBeNull();
-        expect(ctx.ssrHeadElements).toEqual([]);
+        expect(ctx.ssrHeadChildren).toEqual([]);
       });
     });
   });
@@ -471,7 +471,7 @@ describe("unified-request-context", () => {
           _privateCache: new Map([["outer", 1]]),
           currentRequestTags: ["outer-tag"],
           ssrContext: { pathname: "/outer", query: {}, asPath: "/outer" },
-          ssrHeadElements: ["<meta data-outer />"],
+          ssrHeadChildren: ["<meta data-outer />"],
         }),
         async () => {
           _runWithCacheState(() => {
@@ -500,10 +500,10 @@ describe("unified-request-context", () => {
           expect((getRequestContext().ssrContext as any).pathname).toBe("/outer");
 
           runWithHeadState(() => {
-            expect(getRequestContext().ssrHeadElements).toEqual([]);
-            getRequestContext().ssrHeadElements.push("<meta data-inner />");
+            expect(getRequestContext().ssrHeadChildren).toEqual([]);
+            getRequestContext().ssrHeadChildren.push("<meta data-inner />");
           });
-          expect(getRequestContext().ssrHeadElements).toEqual(["<meta data-outer />"]);
+          expect(getRequestContext().ssrHeadChildren).toEqual(["<meta data-outer />"]);
         },
       );
     });
@@ -525,7 +525,7 @@ describe("unified-request-context", () => {
       expect(ctx.currentRequestTags).toEqual([]);
       expect(ctx.executionContext).toBeNull();
       expect(ctx.ssrContext).toBeNull();
-      expect(ctx.ssrHeadElements).toEqual([]);
+      expect(ctx.ssrHeadChildren).toEqual([]);
     });
 
     it("merges partial overrides", () => {
@@ -540,7 +540,7 @@ describe("unified-request-context", () => {
       expect(ctx.headersContext).toBeNull();
       expect(ctx.currentRequestTags).toEqual([]);
       expect(ctx.ssrContext).toBeNull();
-      expect(ctx.ssrHeadElements).toEqual([]);
+      expect(ctx.ssrHeadChildren).toEqual([]);
     });
   });
 });
