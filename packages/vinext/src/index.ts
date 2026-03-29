@@ -1720,6 +1720,47 @@ export default function vinext(options: VinextOptions = {}): PluginOption[] {
               },
             },
           };
+        } else if (!isSSR && !getBuildBundlerOptions(config.build)?.input) {
+          // Plain Pages Router (Node): define client + ssr environments so
+          // createBuilder + buildApp() produces both dist/client and
+          // dist/server/entry.js. Without this, buildApp() only sees the
+          // default client environment and never builds the server entry.
+          // Guard with !isSSR and no explicit input so legacy vite.build()
+          // calls that specify their own input (tests, hybrid build step)
+          // still work via the single-build path — injecting environments
+          // alongside an explicit build input conflicts with the caller's intent.
+          viteConfig.environments = {
+            client: {
+              consumer: "client",
+              optimizeDeps:
+                pagesOptimizeEntries.length > 0 ? { entries: pagesOptimizeEntries } : undefined,
+              build: {
+                outDir: "dist/client",
+                manifest: true,
+                ssrManifest: true,
+                ...withBuildBundlerOptions(viteMajorVersion, {
+                  input: { index: VIRTUAL_CLIENT_ENTRY },
+                  output: getClientOutputConfigForVite(viteMajorVersion),
+                  treeshake: clientTreeshakeConfig,
+                }),
+              },
+            },
+            ssr: {
+              resolve: {
+                external: ["react", "react-dom", "react-dom/server"],
+                noExternal: true as const,
+              },
+              build: {
+                outDir: "dist/server",
+                ...withBuildBundlerOptions(viteMajorVersion, {
+                  input: { index: VIRTUAL_SERVER_ENTRY },
+                  output: {
+                    entryFileNames: "entry.js",
+                  },
+                }),
+              },
+            },
+          };
         }
 
         if (pagesOptimizeEntries.length > 0 && !hasCloudflarePlugin) {
